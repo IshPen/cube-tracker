@@ -54,7 +54,7 @@ class GeometrySettings(BaseModel):
     bevel_segments: int = Field(ge=1, description="Bevel resolution (number of segments).")
     tile_margin_m: float = Field(gt=0, description="Border from cubie face edge to tile edge.")
     tile_height_m: float = Field(
-        gt=0, description="How far each tile sits above the body, in metres."
+        gt=0, description="Sticker thickness: how far each tile sits above the cubie body surface."
     )
 
 

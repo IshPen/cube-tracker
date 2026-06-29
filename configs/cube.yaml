@@ -8,7 +8,7 @@ geometry:
   bevel_radius_m: 0.0018  # rounded cubie edges
   bevel_segments: 4       # bevel smoothness
   tile_margin_m: 0.0016   # border of black body showing around each tile
-  tile_height_m: 0.0004   # how far each tile sits proud of the body
+  tile_height_m: 0.0002   # sticker thickness above the cubie body surface
 
 materials:
   body_color: [0.015, 0.015, 0.015]  # near-black plastic body

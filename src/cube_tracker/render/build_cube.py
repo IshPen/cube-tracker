@@ -122,15 +122,22 @@ def make_cubie(
 
 
 def tile_corners(
-    facelet: cg.Facelet, cell_half: float, margin: float, height: float
+    facelet: cg.Facelet, cell_half: float, margin: float, height: float, gap: float
 ) -> list[cg.Vec3]:
-    """Inset the facelet's nominal corners by ``margin`` and lift them ``height`` off the body."""
+    """Inset the facelet's nominal corners and seat the tile on the cubie body surface.
+
+    The facelet's nominal coordinates lie on the cube's outer surface (``S/2``), but each
+    cubie is shrunk by ``gap`` and so its real outer face sits ``gap / 2`` further in. The
+    tile is therefore pulled in by ``gap / 2`` to rest on the plastic and then raised by
+    ``height`` (its sticker thickness), instead of floating above the nominal surface.
+    """
     inset = (cell_half - margin) / cell_half
+    seat = height - gap / 2.0
     cx, cy, cz = facelet.center
     ox, oy, oz = (
-        facelet.normal[0] * height,
-        facelet.normal[1] * height,
-        facelet.normal[2] * height,
+        facelet.normal[0] * seat,
+        facelet.normal[1] * seat,
+        facelet.normal[2] * seat,
     )
     corners: list[cg.Vec3] = []
     for px, py, pz in facelet.corners:
@@ -211,7 +218,9 @@ def build(config: CubeConfig) -> dict[str, object]:
         material = make_material(
             facelet.material, face_color[facelet.face], config.materials.tile_roughness
         )
-        corners = tile_corners(facelet, cell_half, geom.tile_margin_m, geom.tile_height_m)
+        corners = tile_corners(
+            facelet, cell_half, geom.tile_margin_m, geom.tile_height_m, geom.gap_m
+        )
         make_tile(facelet, corners, material, tile_collection)
 
     landmark_display = size * 0.03
