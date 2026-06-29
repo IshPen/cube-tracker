@@ -47,6 +47,30 @@ under **Blender's** bundled Python, not the project venv.
 This writes `cube_model.blend` and `model_points.json` into `assets/cube_model/`
 (gitignored). Open the `.blend` in Blender to inspect the cube and its landmark empties.
 
+## Rendering a labelled frame
+
+`render_core.py` renders one synthetic frame (scrambled, randomly lit and posed, optionally
+occluded) and writes its labels — bounding box, per-landmark 2D position and visibility, and
+per-facelet colour and coverage — by ray casting against the real geometry. It runs under
+Blender; install `pycuber` into Blender's Python once (`<blender>/python/bin/python -m pip
+install --user pycuber`), then:
+
+```bash
+blender --background --python src/cube_tracker/render/render_core.py -- \
+  --render-config configs/render.yaml --cube-config configs/cube.yaml \
+  --asset assets/cube_model/cube_model.blend \
+  --model-points assets/cube_model/model_points.json --index 0 --out-dir data/frames
+```
+
+Draw the labels back onto the render (in the project venv) to check them by eye:
+
+```bash
+python -m cube_tracker.eval.reproject_overlay --labels data/frames/frame_000000.labels.json
+```
+
+Frames and labels land in `data/` (gitignored). Add `--force-occluders` / `--no-occluders`
+to the render command to force an occluded or clean frame.
+
 ## License
 
 [Apache-2.0](LICENSE).
