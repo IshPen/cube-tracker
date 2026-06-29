@@ -71,6 +71,24 @@ python -m cube_tracker.eval.reproject_overlay --labels data/frames/frame_000000.
 Frames and labels land in `data/` (gitignored). Add `--force-occluders` / `--no-occluders`
 to the render command to force an occluded or clean frame.
 
+## Generating a dataset
+
+Mass-render many labelled frames into a train/val split, in parallel and reproducibly. The
+launcher runs in the venv and spawns one Blender process per shard (it never imports `bpy`):
+
+```bash
+python -m cube_tracker.render.dataset_launcher \
+  --blender "<path-to-blender>" --out-dir data/dataset \
+  --count 500 --val-fraction 0.15 --num-shards 4 --seed 0
+```
+
+This writes `data/dataset/{train,val}/frame_XXXXXX.{png,labels.json}` plus a `manifest.json`.
+Re-running **skips frames that already exist** (crash-resume), and a fixed `--seed` reproduces
+the same dataset. Each frame is produced by the *same* `render_and_label` used for a single
+frame, so the single-frame test and the bulk run share one code path. To render one shard
+directly under Blender (no launcher), run `generate_dataset.py` with `--shard-index` /
+`--num-shards`.
+
 ## License
 
 [Apache-2.0](LICENSE).
