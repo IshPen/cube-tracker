@@ -149,22 +149,50 @@ def place_camera(scene: Any, rng: random.Random, settings: Any) -> Any:
     return cam
 
 
-def setup_world(scene: Any, rng: random.Random, lighting: Any) -> None:
-    """Set a randomised world colour and strength as the ambient light and background.
+def _list_hdris(hdri_dir: str | None) -> list[Path]:
+    if not hdri_dir:
+        return []
+    # Resolve to absolute paths: Blender's image loader interprets relative paths against the
+    # open .blend file's directory, not the process working directory.
+    directory = Path(hdri_dir).resolve()
+    if not directory.is_dir():
+        return []
+    return sorted(directory.glob("*.hdr")) + sorted(directory.glob("*.exr"))
 
-    The colour takes a random hue at low saturation so backgrounds vary in tint (a cheap
-    stand-in for varied environments) without overwhelming the cube's own colours.
+
+def setup_world(scene: Any, rng: random.Random, background_cfg: Any, lighting: Any) -> bool:
+    """Set the world to a random HDRI environment or a solid colour; return True if HDRI.
+
+    An HDRI gives realistic lighting and background together, so when one is used no extra
+    lamps are added (the environment *is* the light). Otherwise a randomly tinted solid
+    colour backs the cube and the caller adds area lights for shape.
     """
     world = scene.world or bpy.data.worlds.new("World")
     scene.world = world
     if world.node_tree is None:
         world.use_nodes = True
-    background = world.node_tree.nodes["Background"]
+    tree = world.node_tree
+    bg_node = tree.nodes["Background"]
+
+    hdris = _list_hdris(background_cfg.hdri_dir)
+    if hdris and rng.random() < background_cfg.hdri_probability:
+        environment = tree.nodes.new("ShaderNodeTexEnvironment")
+        environment.image = bpy.data.images.load(str(rng.choice(hdris)))
+        mapping = tree.nodes.new("ShaderNodeMapping")
+        tex_coord = tree.nodes.new("ShaderNodeTexCoord")
+        tree.links.new(tex_coord.outputs["Generated"], mapping.inputs["Vector"])
+        tree.links.new(mapping.outputs["Vector"], environment.inputs["Vector"])
+        tree.links.new(environment.outputs["Color"], bg_node.inputs["Color"])
+        mapping.inputs["Rotation"].default_value[2] = rng.uniform(0.0, 2.0 * math.pi)
+        bg_node.inputs["Strength"].default_value = _sample(rng, background_cfg.hdri_strength)
+        return True
+
     red, green, blue = colorsys.hsv_to_rgb(
         rng.random(), rng.uniform(0.0, 0.35), _sample(rng, lighting.world_value)
     )
-    background.inputs["Color"].default_value = (red, green, blue, 1.0)
-    background.inputs["Strength"].default_value = _sample(rng, lighting.world_strength)
+    bg_node.inputs["Color"].default_value = (red, green, blue, 1.0)
+    bg_node.inputs["Strength"].default_value = _sample(rng, lighting.world_strength)
+    return False
 
 
 def add_lights(scene: Any, rng: random.Random, lighting: Any) -> None:
@@ -309,6 +337,42 @@ def _enable_gpu(scene: Any) -> str:
             return backend
     scene.cycles.device = "CPU"
     return "CPU"
+
+
+def spawn_distractors(scene: Any, rng: random.Random, settings: Any) -> None:
+    """Scatter random non-cube objects around the scene as detector negatives (clutter).
+
+    Unlike occluders (placed on the camera->cube ray to hide stickers), distractors are
+    scattered in random directions so the detector sees realistic non-cube objects to reject.
+    They share the scene geometry, so any that happen to fall in front are handled correctly
+    by the same occlusion ray casts.
+    """
+    count = rng.randint(settings.count_min, settings.count_max)
+    for index in range(count):
+        direction = Vector((rng.gauss(0.0, 1.0), rng.gauss(0.0, 1.0), rng.gauss(0.0, 1.0)))
+        if direction.length == 0.0:
+            direction = Vector((1.0, 0.0, 0.0))
+        direction.normalize()
+        size = _sample(rng, settings.size_m)
+        mesh = bpy.data.meshes.new(f"distractor_{index}")
+        if rng.random() < 0.5:
+            _fill_cube(mesh, size)
+        else:
+            _fill_octahedron(mesh, size)
+        obj = bpy.data.objects.new(f"distractor_{index}", mesh)
+        obj.location = direction * _sample(rng, settings.distance_m)
+        obj.rotation_euler = (
+            rng.uniform(0.0, 2.0 * math.pi),
+            rng.uniform(0.0, 2.0 * math.pi),
+            rng.uniform(0.0, 2.0 * math.pi),
+        )
+        obj.scale = (rng.uniform(0.6, 1.5), rng.uniform(0.6, 1.5), rng.uniform(0.6, 1.5))
+        material = bpy.data.materials.new(f"distractor_mat_{index}")
+        if material.node_tree is None:
+            material.use_nodes = True
+        _set_principled(material, (rng.random(), rng.random(), rng.random()), rng.uniform(0.2, 0.8))
+        obj.data.materials.append(material)
+        scene.collection.objects.link(obj)
 
 
 def setup_render(scene: Any, render_config: RenderConfig, seed: int) -> None:
@@ -467,8 +531,11 @@ def render_and_label(
     paint_state(cube_config, render_config, facelet_map, rng)
 
     cam = place_camera(scene, rng, render_config.camera)
-    setup_world(scene, rng, render_config.lighting)
-    add_lights(scene, rng, render_config.lighting)
+    used_hdri = setup_world(scene, rng, render_config.background, render_config.lighting)
+    if not used_hdri:
+        add_lights(scene, rng, render_config.lighting)
+    if rng.random() < render_config.distractors.probability:
+        spawn_distractors(scene, rng, render_config.distractors)
 
     spawn = (
         force_occluders

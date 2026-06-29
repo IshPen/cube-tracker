@@ -7,9 +7,10 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from cube_tracker.common.config import CubeConfig, load_cube_config
+from cube_tracker.common.config import CubeConfig, load_cube_config, load_render_config
 
-_CONFIG = Path(__file__).resolve().parents[1] / "configs" / "cube.yaml"
+_CONFIGS = Path(__file__).resolve().parents[1] / "configs"
+_CONFIG = _CONFIGS / "cube.yaml"
 
 
 def _valid_dict() -> dict[str, object]:
@@ -43,6 +44,13 @@ def test_default_config_loads() -> None:
     assert config.size_m == pytest.approx(0.057)
     assert config.geometry.bevel_segments == 4
     assert config.materials.face_colors.U == (0.9, 0.9, 0.9)
+
+
+def test_default_render_config_loads() -> None:
+    config = load_render_config(_CONFIGS / "render.yaml")
+    assert config.device in ("CPU", "GPU")
+    assert 0.0 <= config.background.hdri_probability <= 1.0
+    assert config.distractors.count_max >= config.distractors.count_min
 
 
 def test_rejects_out_of_range_color() -> None:

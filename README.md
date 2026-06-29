@@ -53,7 +53,15 @@ This writes `cube_model.blend` and `model_points.json` into `assets/cube_model/`
 occluded) and writes its labels — bounding box, per-landmark 2D position and visibility, and
 per-facelet colour and coverage — by ray casting against the real geometry. It runs under
 Blender; install `pycuber` into Blender's Python once (`<blender>/python/bin/python -m pip
-install --user pycuber`), then:
+install --user pycuber`). For realistic backgrounds, also fetch a set of CC0 HDRIs once, into
+the gitignored `assets/hdri/`:
+
+```bash
+python -m cube_tracker.render.fetch_hdris --out-dir assets/hdri --count 28
+```
+
+Then render (each frame gets a random HDRI environment or solid background, plus random
+distractor objects so the detector learns to reject clutter):
 
 ```bash
 blender --background --python src/cube_tracker/render/render_core.py -- \

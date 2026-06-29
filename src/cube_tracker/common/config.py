@@ -147,9 +147,32 @@ class LightingSettings(BaseModel):
     num_lights_min: int = Field(ge=0)
     num_lights_max: int = Field(ge=0)
     light_energy: Range = Field(description="Per-light power, in watts.")
+
+
+class BackgroundSettings(BaseModel):
+    """Environment background: realistic HDRIs when available, else a solid world colour."""
+
+    model_config = ConfigDict(extra="forbid")
+
     hdri_dir: str | None = Field(
-        default=None, description="Optional folder of .hdr/.exr environment maps; used if present."
+        default=None, description="Folder of .hdr/.exr environment maps; fetched, not committed."
     )
+    hdri_probability: float = Field(
+        ge=0, le=1, description="Chance of using an HDRI environment vs a solid world colour."
+    )
+    hdri_strength: Range = Field(description="Multiplier on HDRI brightness.")
+
+
+class DistractorSettings(BaseModel):
+    """Non-cube clutter objects scattered in the scene so the detector learns to reject them."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    probability: float = Field(ge=0, le=1)
+    count_min: int = Field(ge=0)
+    count_max: int = Field(ge=0)
+    size_m: Range
+    distance_m: Range = Field(description="How far from the cube centre distractors are scattered.")
 
 
 class PaletteJitter(BaseModel):
@@ -204,6 +227,8 @@ class RenderConfig(BaseModel):
     image: ImageSettings
     camera: CameraSettings
     lighting: LightingSettings
+    background: BackgroundSettings
+    distractors: DistractorSettings
     palette: PaletteJitter
     finish: FinishSettings
     occluders: OccluderSettings
@@ -219,6 +244,8 @@ class RenderConfig(BaseModel):
             raise ValueError("lighting.num_lights_max must be >= num_lights_min.")
         if self.occluders.count_max < self.occluders.count_min:
             raise ValueError("occluders.count_max must be >= count_min.")
+        if self.distractors.count_max < self.distractors.count_min:
+            raise ValueError("distractors.count_max must be >= count_min.")
         return self
 
 

@@ -16,13 +16,24 @@ camera:
   elevation_deg: { min: -35.0, max: 60.0 }
   roll_deg: { min: -25.0, max: 25.0 }
 
-lighting:
+lighting:   # used only on the fraction of frames that fall back to a solid background
   world_strength: { min: 0.2, max: 1.2 }
   world_value: { min: 0.2, max: 0.9 }
   num_lights_min: 1
   num_lights_max: 3
   light_energy: { min: 8.0, max: 60.0 }
-  hdri_dir: assets/hdri   # used only if it exists and contains .hdr/.exr files
+
+background:
+  hdri_dir: assets/hdri          # fetch with: python -m cube_tracker.render.fetch_hdris
+  hdri_probability: 0.85         # realistic HDRI environment most frames, solid colour otherwise
+  hdri_strength: { min: 0.4, max: 1.6 }
+
+distractors:
+  probability: 0.7               # scatter non-cube clutter so the detector learns to reject it
+  count_min: 1
+  count_max: 4
+  size_m: { min: 0.02, max: 0.08 }
+  distance_m: { min: 0.06, max: 0.16 }
 
 palette:
   hue_deg: 8.0
