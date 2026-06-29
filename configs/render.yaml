@@ -1,0 +1,49 @@
+# Per-frame render randomisation ranges (M2). Validated by
+# cube_tracker.common.config.RenderConfig. Lengths in metres, angles in degrees.
+
+seed: 0
+
+image:
+  width: 768
+  height: 768
+  samples: 24
+
+camera:
+  distance_m: { min: 0.13, max: 0.26 }   # roughly 2.3x .. 4.6x the cube width away
+  focal_mm: { min: 30.0, max: 55.0 }
+  sensor_mm: 36.0
+  elevation_deg: { min: -35.0, max: 60.0 }
+  roll_deg: { min: -25.0, max: 25.0 }
+
+lighting:
+  world_strength: { min: 0.2, max: 1.2 }
+  world_value: { min: 0.2, max: 0.9 }
+  num_lights_min: 1
+  num_lights_max: 3
+  light_energy: { min: 8.0, max: 60.0 }
+  hdri_dir: assets/hdri   # used only if it exists and contains .hdr/.exr files
+
+palette:
+  hue_deg: 8.0
+  saturation: 0.12
+  value: 0.12
+
+finish:
+  tile_roughness: { min: 0.2, max: 0.45 }
+  body_roughness: { min: 0.35, max: 0.6 }
+
+occluders:
+  probability: 0.6
+  count_min: 1
+  count_max: 2
+  size_m: { min: 0.015, max: 0.035 }
+
+scramble:
+  num_moves: 25
+
+motion_blur:
+  probability: 0.0          # off by default; M2 verification wants sharp frames
+  shutter: 0.5
+  max_rotation_deg: 12.0
+
+visibility_tol_m: 0.004     # > the ~1 mm nominal-surface offset, < occluder standoff

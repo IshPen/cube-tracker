@@ -101,3 +101,125 @@ def load_cube_config(path: str | Path) -> CubeConfig:
     """Load and validate a cube configuration from a YAML file."""
     raw = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     return CubeConfig.model_validate(raw)
+
+
+# --- Render configuration (M2): the domain-randomisation ranges for a single frame ---
+
+
+class Range(BaseModel):
+    """An inclusive ``[min, max]`` interval that a value is uniformly sampled from."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    min: float
+    max: float
+
+    @model_validator(mode="after")
+    def _ordered(self) -> Range:
+        if self.max < self.min:
+            raise ValueError(f"range max ({self.max}) must be >= min ({self.min}).")
+        return self
+
+
+class ImageSettings(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    width: int = Field(gt=0)
+    height: int = Field(gt=0)
+    samples: int = Field(ge=1, description="Cycles path-tracing samples per pixel.")
+
+
+class CameraSettings(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    distance_m: Range = Field(description="Camera distance from the cube centre.")
+    focal_mm: Range = Field(description="Lens focal length (varies field of view).")
+    sensor_mm: float = Field(gt=0)
+    elevation_deg: Range = Field(description="Angle above/below the cube's equator.")
+    roll_deg: Range = Field(description="Camera roll about the view axis.")
+
+
+class LightingSettings(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    world_strength: Range
+    world_value: Range = Field(description="Brightness of the ambient world colour.")
+    num_lights_min: int = Field(ge=0)
+    num_lights_max: int = Field(ge=0)
+    light_energy: Range = Field(description="Per-light power, in watts.")
+    hdri_dir: str | None = Field(
+        default=None, description="Optional folder of .hdr/.exr environment maps; used if present."
+    )
+
+
+class PaletteJitter(BaseModel):
+    """Per-frame jitter applied to the six base colours and body, for cross-brand robustness."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    hue_deg: float = Field(ge=0)
+    saturation: float = Field(ge=0, description="Max fractional saturation shift.")
+    value: float = Field(ge=0, description="Max fractional brightness shift.")
+
+
+class FinishSettings(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tile_roughness: Range
+    body_roughness: Range
+
+
+class OccluderSettings(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    probability: float = Field(ge=0, le=1, description="Chance a frame spawns occluders at all.")
+    count_min: int = Field(ge=0)
+    count_max: int = Field(ge=0)
+    size_m: Range
+
+
+class ScrambleSettings(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    num_moves: int = Field(ge=0, description="Random scramble length; 0 renders a solved cube.")
+
+
+class MotionBlurSettings(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    probability: float = Field(ge=0, le=1)
+    shutter: float = Field(gt=0)
+    max_rotation_deg: float = Field(ge=0, description="Cube spin across the shutter when blurred.")
+
+
+class RenderConfig(BaseModel):
+    """Top-level per-frame render configuration (see ``configs/render.yaml``)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    seed: int
+    image: ImageSettings
+    camera: CameraSettings
+    lighting: LightingSettings
+    palette: PaletteJitter
+    finish: FinishSettings
+    occluders: OccluderSettings
+    scramble: ScrambleSettings
+    motion_blur: MotionBlurSettings
+    visibility_tol_m: float = Field(
+        gt=0, description="Ray hit-distance tolerance when deciding landmark visibility."
+    )
+
+    @model_validator(mode="after")
+    def _counts_ordered(self) -> RenderConfig:
+        if self.lighting.num_lights_max < self.lighting.num_lights_min:
+            raise ValueError("lighting.num_lights_max must be >= num_lights_min.")
+        if self.occluders.count_max < self.occluders.count_min:
+            raise ValueError("occluders.count_max must be >= count_min.")
+        return self
+
+
+def load_render_config(path: str | Path) -> RenderConfig:
+    """Load and validate a render configuration from a YAML file."""
+    raw = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    return RenderConfig.model_validate(raw)
