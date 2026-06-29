@@ -43,7 +43,7 @@ scramble:
 
 motion_blur:
   probability: 0.0          # off by default; M2 verification wants sharp frames
-  shutter: 0.5
-  max_rotation_deg: 12.0
+  shutter: 0.6
+  max_rotation_deg: 18.0
 
 visibility_tol_m: 0.004     # > the ~1 mm nominal-surface offset, < occluder standoff

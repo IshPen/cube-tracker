@@ -150,14 +150,20 @@ def place_camera(scene: Any, rng: random.Random, settings: Any) -> Any:
 
 
 def setup_world(scene: Any, rng: random.Random, lighting: Any) -> None:
-    """Set a randomised grey world colour and strength as the ambient light and background."""
+    """Set a randomised world colour and strength as the ambient light and background.
+
+    The colour takes a random hue at low saturation so backgrounds vary in tint (a cheap
+    stand-in for varied environments) without overwhelming the cube's own colours.
+    """
     world = scene.world or bpy.data.worlds.new("World")
     scene.world = world
     if world.node_tree is None:
         world.use_nodes = True
     background = world.node_tree.nodes["Background"]
-    value = _sample(rng, lighting.world_value)
-    background.inputs["Color"].default_value = (value, value, value, 1.0)
+    red, green, blue = colorsys.hsv_to_rgb(
+        rng.random(), rng.uniform(0.0, 0.35), _sample(rng, lighting.world_value)
+    )
+    background.inputs["Color"].default_value = (red, green, blue, 1.0)
     background.inputs["Strength"].default_value = _sample(rng, lighting.world_strength)
 
 
@@ -245,6 +251,40 @@ def _fill_octahedron(mesh: Any, size: float) -> None:
     ]
     mesh.from_pydata(verts, [], faces)
     mesh.update()
+
+
+def apply_motion_blur(scene: Any, rng: random.Random, settings: Any) -> None:
+    """Blur the cube by spinning it slightly across the shutter, sharp at the frame centre.
+
+    The cube is parented to a pivot whose rotation is keyframed symmetrically about the
+    current frame, so at the frame itself the pose is identity -- the labels stay exact --
+    while the render integrates a small rotation into motion blur, as when a solver flicks a
+    face. Only the cube moves; the camera and any occluders stay put.
+    """
+    scene.render.use_motion_blur = True
+    scene.render.motion_blur_shutter = settings.shutter
+
+    pivot = bpy.data.objects.new("motion_pivot", None)
+    scene.collection.objects.link(pivot)
+    for obj in list(scene.objects):
+        if obj.name.startswith(("cubie_", "tile_")):
+            obj.parent = pivot
+            obj.matrix_parent_inverse = pivot.matrix_world.inverted()
+
+    axis = Vector((rng.uniform(-1.0, 1.0), rng.uniform(-1.0, 1.0), rng.uniform(-1.0, 1.0)))
+    if axis.length == 0.0:
+        axis = Vector((0.0, 0.0, 1.0))
+    axis.normalize()
+    angle = math.radians(settings.max_rotation_deg)
+
+    # Keyframe the centre frame explicitly at identity so the labelled pose is exact, with
+    # equal-and-opposite rotation on either side to smear the shutter into blur.
+    scene.frame_start = 0
+    scene.frame_end = 2
+    for frame, sign in ((0, -1.0), (1, 0.0), (2, 1.0)):
+        pivot.rotation_euler = Quaternion(axis, sign * angle).to_euler()
+        pivot.keyframe_insert(data_path="rotation_euler", frame=frame)
+    scene.frame_set(1)
 
 
 def setup_render(scene: Any, image: Any, seed: int) -> None:
@@ -387,6 +427,7 @@ def render_and_label(
     model_points: dict[str, Any],
     out_dir: Path,
     force_occluders: bool | None = None,
+    force_motion_blur: bool | None = None,
 ) -> dict[str, Any]:
     """Render frame ``index`` and return its labels (also written next to the PNG)."""
     rng = random.Random(render_config.seed + index)
@@ -408,6 +449,14 @@ def render_and_label(
     )
     if spawn:
         spawn_occluders(scene, rng, render_config.occluders, cam.location)
+
+    blur = (
+        force_motion_blur
+        if force_motion_blur is not None
+        else rng.random() < render_config.motion_blur.probability
+    )
+    if blur:
+        apply_motion_blur(scene, rng, render_config.motion_blur)
 
     setup_render(scene, render_config.image, render_config.seed + index)
 
@@ -445,6 +494,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     occ = parser.add_mutually_exclusive_group()
     occ.add_argument("--force-occluders", dest="force", action="store_true", default=None)
     occ.add_argument("--no-occluders", dest="force", action="store_false")
+    blur = parser.add_mutually_exclusive_group()
+    blur.add_argument("--force-motion-blur", dest="blur", action="store_true", default=None)
+    blur.add_argument("--no-motion-blur", dest="blur", action="store_false")
     return parser.parse_args(argv)
 
 
@@ -464,6 +516,7 @@ def main() -> None:
         model_points,
         out_dir,
         args.force,
+        args.blur,
     )
     visible = sum(1 for lm in labels["landmarks"] if lm["visible"])
     print(
