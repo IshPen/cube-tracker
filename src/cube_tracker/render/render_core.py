@@ -287,7 +287,32 @@ def apply_motion_blur(scene: Any, rng: random.Random, settings: Any) -> None:
     scene.frame_set(1)
 
 
-def setup_render(scene: Any, image: Any, seed: int) -> None:
+def _enable_gpu(scene: Any) -> str:
+    """Enable Cycles GPU rendering (OptiX preferred, then CUDA); fall back to CPU.
+
+    Returns the device label actually selected so the caller can report it. On an RTX card
+    OptiX gives hardware ray tracing and the OptiX denoiser, the big speed-up over CPU.
+    """
+    preferences = bpy.context.preferences.addons["cycles"].preferences
+    for backend in ("OPTIX", "CUDA"):
+        try:
+            preferences.compute_device_type = backend
+        except TypeError:
+            continue
+        preferences.get_devices()
+        if any(device.type == backend for device in preferences.devices):
+            for device in preferences.devices:
+                device.use = device.type == backend
+            scene.cycles.device = "GPU"
+            if backend == "OPTIX":
+                scene.cycles.denoiser = "OPTIX"
+            return backend
+    scene.cycles.device = "CPU"
+    return "CPU"
+
+
+def setup_render(scene: Any, render_config: RenderConfig, seed: int) -> None:
+    image = render_config.image
     scene.render.engine = "CYCLES"
     scene.render.resolution_x = image.width
     scene.render.resolution_y = image.height
@@ -296,6 +321,9 @@ def setup_render(scene: Any, image: Any, seed: int) -> None:
     scene.cycles.samples = image.samples
     scene.cycles.use_denoising = True
     scene.cycles.seed = seed
+    device = _enable_gpu(scene) if render_config.device == "GPU" else "CPU"
+    scene.cycles.device = "GPU" if device != "CPU" else "CPU"
+    print(f"[render_core] cycles device: {device}", flush=True)
 
 
 def _project(
@@ -458,7 +486,7 @@ def render_and_label(
     if blur:
         apply_motion_blur(scene, rng, render_config.motion_blur)
 
-    setup_render(scene, render_config.image, render_config.seed + index)
+    setup_render(scene, render_config, render_config.seed + index)
 
     stem = f"frame_{index:06d}"
     png_path = out_dir / f"{stem}.png"

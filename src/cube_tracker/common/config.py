@@ -9,7 +9,7 @@ PyYAML, and the standard library, so it loads cleanly under Blender's interprete
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 import yaml
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
@@ -198,6 +198,9 @@ class RenderConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     seed: int
+    device: Literal["CPU", "GPU"] = Field(
+        default="GPU", description="Cycles render device; GPU uses OptiX/CUDA, falling back to CPU."
+    )
     image: ImageSettings
     camera: CameraSettings
     lighting: LightingSettings

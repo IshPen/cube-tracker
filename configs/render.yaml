@@ -2,6 +2,7 @@
 # cube_tracker.common.config.RenderConfig. Lengths in metres, angles in degrees.
 
 seed: 0
+device: GPU   # Cycles render device: GPU (OptiX/CUDA, falls back to CPU) or CPU
 
 image:
   width: 768
