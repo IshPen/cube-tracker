@@ -1,0 +1,11 @@
+# Normalize line endings: text files are LF in the repository on every platform.
+* text=auto eol=lf
+
+# Binary assets must never be line-ending normalized.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.blend binary
+*.onnx binary
+*.pt binary
+*.pth binary

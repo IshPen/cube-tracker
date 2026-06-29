@@ -1,0 +1,65 @@
+# --- Project data, weights, and assets (never committed) ---
+data/
+models_out/
+assets/
+*.blend
+*.blend1
+
+# Generated image datasets
+*.png
+*.jpg
+*.jpeg
+*.bmp
+*.tif
+*.tiff
+
+# Model exports
+*.onnx
+*.pt
+*.pth
+*.ckpt
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+build/
+dist/
+.eggs/
+.installed.cfg
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# Test / coverage / type-checker caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.cache/
+
+# --- Tooling / editors ---
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- Secrets ---
+.env
+.env.*
+*.pem
+*.key
+
+# --- OS cruft ---
+.DS_Store
+Thumbs.db
+desktop.ini

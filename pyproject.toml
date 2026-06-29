@@ -1,0 +1,107 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cube-tracker"
+version = "0.0.0"
+description = "Reconstruct a human Rubik's cube solve from ordinary webcam video — no Bluetooth smart cube."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Cube Tracker Contributors" }]
+keywords = [
+  "rubiks-cube",
+  "speedcubing",
+  "computer-vision",
+  "pose-estimation",
+  "synthetic-data",
+]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Programming Language :: Python :: 3.11",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+  "Topic :: Scientific/Engineering :: Image Recognition",
+]
+
+# Runtime dependencies. NOTE: `bpy` is intentionally
+# absent — the render/label scripts run under Blender's own bundled Python, never this venv.
+dependencies = [
+  "numpy",
+  "opencv-python",
+  "scipy",
+  "pillow",
+  "pyyaml",
+  "pydantic>=2",
+  "tqdm",
+  "torch",
+  "torchvision",
+  "ultralytics",
+  "pycuber",
+  "kociemba",
+  "onnx",
+  "onnxruntime",
+]
+
+[project.optional-dependencies]
+# Development tooling.
+dev = [
+  "pytest",
+  "pytest-cov",
+  "ruff",
+  "mypy",
+  "pre-commit",
+  "types-PyYAML",
+]
+# Development-time labelling helpers (Grounding DINO, Segment Anything) used to
+# pseudo-label real footage. These never ship in the deployed pipeline (§5.2).
+label = ["transformers"]
+
+[project.urls]
+Homepage = "https://github.com/IshPen/cube-tracker"
+Repository = "https://github.com/IshPen/cube-tracker"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cube_tracker"]
+
+# --- Linting & formatting (ruff is the single source of truth for both) ---
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes
+  "I",   # isort
+  "B",   # flake8-bugbear
+  "UP",  # pyupgrade
+  "SIM", # flake8-simplify
+  "C4",  # flake8-comprehensions
+  "RUF", # ruff-specific rules
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["cube_tracker"]
+
+# --- Static typing ---
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src", "tests"]
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+# --- Tests ---
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.coverage.run]
+branch = true
+source = ["src/cube_tracker"]
