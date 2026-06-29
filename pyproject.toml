@@ -96,6 +96,12 @@ warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 
+# Blender's modules ship only inside Blender's interpreter, so they are unavailable to
+# mypy in the project venv. build_cube.py runs under Blender; type-check the rest around it.
+[[tool.mypy.overrides]]
+module = ["bpy", "bmesh"]
+ignore_missing_imports = true
+
 # --- Tests ---
 [tool.pytest.ini_options]
 minversion = "7.0"

@@ -1,0 +1,26 @@
+# Cube asset build parameters (M1). Validated by cube_tracker.common.config.CubeConfig.
+# Lengths are in metres. The default models a standard 57 mm 3x3 speedcube.
+
+size_m: 0.057
+
+geometry:
+  gap_m: 0.0016           # visible gap between adjacent cubies
+  bevel_radius_m: 0.0018  # rounded cubie edges
+  bevel_segments: 4       # bevel smoothness
+  tile_margin_m: 0.0016   # border of black body showing around each tile
+  tile_height_m: 0.0004   # how far each tile sits proud of the body
+
+materials:
+  body_color: [0.015, 0.015, 0.015]  # near-black plastic body
+  body_roughness: 0.45
+  tile_roughness: 0.30
+
+  # Standard "white up, green front, red right" color scheme. These are base colors
+  # only; the render pipeline (M2) jitters them per frame for cross-brand generalisation.
+  face_colors:
+    U: [0.90, 0.90, 0.90]  # white
+    D: [0.95, 0.80, 0.05]  # yellow
+    F: [0.00, 0.50, 0.18]  # green
+    B: [0.00, 0.18, 0.60]  # blue
+    L: [0.90, 0.35, 0.00]  # orange
+    R: [0.70, 0.03, 0.03]  # red

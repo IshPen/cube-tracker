@@ -20,14 +20,16 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      # M0 has no source importing the heavy ML stack, so CI installs only the
-      # lint/type/test tooling plus the package itself (editable, no deps) to stay
-      # fast and reliable. Later milestones will extend this as real code lands.
+      # CI installs the lint/type/test tooling plus only the lightweight runtime deps the
+      # current code actually imports (pydantic + PyYAML for config). The heavy ML stack
+      # (torch, ultralytics, opencv) is intentionally not installed until a milestone needs
+      # it, keeping CI fast and reliable.
       - name: Install tooling
         run: |
           python -m pip install --upgrade pip
           pip install ruff mypy pytest pytest-cov types-PyYAML
           pip install -e . --no-deps
+          pip install pydantic pyyaml
 
       - name: Ruff lint
         run: ruff check .
