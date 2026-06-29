@@ -4,10 +4,10 @@
 size_m: 0.057
 
 geometry:
-  gap_m: 0.0016           # visible gap between adjacent cubies
+  gap_m: 0.0008           # small gap between cubies (still reads as a gridline)
   bevel_radius_m: 0.0018  # rounded cubie edges
   bevel_segments: 4       # bevel smoothness
-  tile_margin_m: 0.0016   # border of black body showing around each tile
+  tile_margin_m: 0.0010   # thin border of black body showing around each tile
   tile_height_m: 0.0002   # sticker thickness above the cubie body surface
 
 materials:
