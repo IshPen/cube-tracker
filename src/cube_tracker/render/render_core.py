@@ -385,6 +385,9 @@ def setup_render(scene: Any, render_config: RenderConfig, seed: int) -> None:
     scene.cycles.samples = image.samples
     scene.cycles.use_denoising = True
     scene.cycles.seed = seed
+    # AgX rolls highlights off gracefully (desaturates toward white) instead of hard-clipping,
+    # so bright frames keep readable cube colours rather than blowing out to flat white.
+    scene.view_settings.view_transform = "AgX"
     device = _enable_gpu(scene) if render_config.device == "GPU" else "CPU"
     scene.cycles.device = "GPU" if device != "CPU" else "CPU"
     print(f"[render_core] cycles device: {device}", flush=True)
@@ -511,6 +514,21 @@ def compute_labels(
     }
 
 
+def _pick_asset(asset_path: Path, rng: random.Random) -> Path:
+    """Pick a cube variant when given a variants.json; otherwise use the .blend directly.
+
+    The variants share one landmark lattice, so the labels are identical whichever look is
+    chosen -- only the cube's appearance (gridline thickness, stickered vs near-stickerless)
+    changes, sampled by the weights in the manifest.
+    """
+    if asset_path.suffix != ".json":
+        return asset_path
+    manifest = json.loads(asset_path.read_text(encoding="utf-8"))
+    files = [asset_path.parent / str(entry["file"]) for entry in manifest]
+    weights = [float(entry["weight"]) for entry in manifest]
+    return files[rng.choices(range(len(files)), weights=weights, k=1)[0]]
+
+
 def render_and_label(
     index: int,
     render_config: RenderConfig,
@@ -523,7 +541,7 @@ def render_and_label(
 ) -> dict[str, Any]:
     """Render frame ``index`` and return its labels (also written next to the PNG)."""
     rng = random.Random(render_config.seed + index)
-    bpy.ops.wm.open_mainfile(filepath=str(asset_path))
+    bpy.ops.wm.open_mainfile(filepath=str(_pick_asset(asset_path, rng)))
     scene = bpy.context.scene
 
     scramble = cube_state.random_scramble(render_config.scramble.num_moves, rng)

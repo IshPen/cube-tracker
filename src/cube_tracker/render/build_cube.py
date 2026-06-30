@@ -233,23 +233,35 @@ def build(config: CubeConfig) -> dict[str, object]:
 def main() -> None:
     args = parse_args(_script_args(sys.argv))
     config = load_cube_config(args.config)
-
-    model_points = build(config)
-
     out_dir = Path(args.out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    blend_path = out_dir / args.blend_name
     points_path = out_dir / args.points_name
 
-    bpy.ops.wm.save_as_mainfile(filepath=str(blend_path))
-    points_path.write_text(json.dumps(model_points, indent=2) + "\n", encoding="utf-8")
-
-    landmarks = model_points["landmarks"]
-    facelets = model_points["facelets"]
-    assert isinstance(landmarks, list) and isinstance(facelets, list)
-    print(f"[build_cube] wrote {blend_path}")
-    print(f"[build_cube] wrote {points_path}")
-    print(f"[build_cube] {len(landmarks)} landmarks, {len(facelets)} facelets")
+    if config.variants:
+        # Build one .blend per appearance variant (all share the landmark lattice), plus a
+        # variants.json the renderer reads to sample a look per frame by weight.
+        manifest: list[dict[str, object]] = []
+        model_points: dict[str, object] = {}
+        for variant in config.variants:
+            geometry = config.geometry.model_copy(
+                update={"gap_m": variant.gap_m, "tile_margin_m": variant.tile_margin_m}
+            )
+            model_points = build(config.model_copy(update={"geometry": geometry}))
+            blend_path = out_dir / f"cube_{variant.name}.blend"
+            bpy.ops.wm.save_as_mainfile(filepath=str(blend_path))
+            manifest.append({"file": blend_path.name, "weight": variant.weight})
+            print(f"[build_cube] wrote {blend_path} (weight {variant.weight})")
+        (out_dir / "variants.json").write_text(
+            json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+        )
+        points_path.write_text(json.dumps(model_points, indent=2) + "\n", encoding="utf-8")
+        print(f"[build_cube] {len(manifest)} variants + {points_path.name}")
+    else:
+        model_points = build(config)
+        blend_path = out_dir / args.blend_name
+        bpy.ops.wm.save_as_mainfile(filepath=str(blend_path))
+        points_path.write_text(json.dumps(model_points, indent=2) + "\n", encoding="utf-8")
+        print(f"[build_cube] wrote {blend_path} and {points_path.name}")
 
 
 if __name__ == "__main__":

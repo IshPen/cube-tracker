@@ -69,6 +69,24 @@ class MaterialSettings(BaseModel):
     face_colors: FaceColors
 
 
+class CubeVariant(BaseModel):
+    """An appearance variant: a gap/border combination plus a sampling weight.
+
+    Building several variants (thick-gridline stickered through thin-gridline near-stickerless)
+    and sampling one per frame gives cross-brand generalisation, per the brief. Only the look
+    changes; the landmark lattice and facelet identities are identical across variants.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    gap_m: float = Field(gt=0, description="Inter-cubie gap for this variant.")
+    tile_margin_m: float = Field(
+        gt=0, description="Black border around each tile (0 = stickerless)."
+    )
+    weight: float = Field(gt=0, description="Relative chance of this look being sampled per frame.")
+
+
 class CubeConfig(BaseModel):
     """Top-level cube build configuration (see ``configs/cube.yaml``)."""
 
@@ -77,6 +95,10 @@ class CubeConfig(BaseModel):
     size_m: float = Field(gt=0, description="Full edge length of the cube, in metres.")
     geometry: GeometrySettings
     materials: MaterialSettings
+    variants: list[CubeVariant] = Field(
+        default_factory=list,
+        description="Appearance variants built as separate assets; the renderer samples one.",
+    )
 
     @model_validator(mode="after")
     def _check_fits(self) -> CubeConfig:
@@ -94,6 +116,9 @@ class CubeConfig(BaseModel):
             raise ValueError("bevel_radius_m is too large for the cubie body size.")
         if 2.0 * self.geometry.tile_margin_m >= body:
             raise ValueError("tile_margin_m is too large for the cubie face size.")
+        for variant in self.variants:
+            if variant.gap_m >= cubie or 2.0 * variant.tile_margin_m >= cubie - variant.gap_m:
+                raise ValueError(f"variant {variant.name!r}: gap/margin too large for the cubie.")
         return self
 
 

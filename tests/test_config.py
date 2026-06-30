@@ -43,7 +43,15 @@ def test_default_config_loads() -> None:
     config = load_cube_config(_CONFIG)
     assert config.size_m == pytest.approx(0.057)
     assert config.geometry.bevel_segments == 4
-    assert config.materials.face_colors.U == (0.9, 0.9, 0.9)
+    assert pytest.approx((0.92, 0.92, 0.92)) == config.materials.face_colors.U
+
+
+def test_default_config_has_weighted_variants() -> None:
+    config = load_cube_config(_CONFIG)
+    assert len(config.variants) >= 2
+    names = {v.name for v in config.variants}
+    assert "stickered_thick" in names  # the thick/Rubik's look is still represented
+    assert all(v.weight > 0 for v in config.variants)
 
 
 def test_default_render_config_loads() -> None:

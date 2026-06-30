@@ -17,32 +17,32 @@ camera:
   roll_deg: { min: -25.0, max: 25.0 }
 
 lighting:   # used only on the fraction of frames that fall back to a solid background
-  world_strength: { min: 0.2, max: 1.2 }
+  world_strength: { min: 0.2, max: 0.9 }   # capped to keep colours readable (no blowout)
   world_value: { min: 0.2, max: 0.9 }
   num_lights_min: 1
   num_lights_max: 3
-  light_energy: { min: 8.0, max: 60.0 }
+  light_energy: { min: 8.0, max: 35.0 }    # capped (was 60) to avoid over-exposing the cube
 
 background:
   hdri_dir: assets/hdri          # fetch with: python -m cube_tracker.render.fetch_hdris
   hdri_probability: 0.85         # realistic HDRI environment most frames, solid colour otherwise
-  hdri_strength: { min: 0.4, max: 1.6 }
+  hdri_strength: { min: 0.3, max: 1.0 }    # capped (was 1.6); AgX rolls off the remaining highlights
 
 distractors:
-  probability: 0.7               # scatter non-cube clutter so the detector learns to reject it
+  probability: 0.6               # scatter non-cube clutter so the detector learns to reject it
   count_min: 1
-  count_max: 4
-  size_m: { min: 0.02, max: 0.08 }
-  distance_m: { min: 0.06, max: 0.16 }
+  count_max: 3
+  size_m: { min: 0.015, max: 0.04 }   # smaller (was 0.08) so they can't fill the frame
+  distance_m: { min: 0.11, max: 0.24 }  # pushed out (was 0.06) so they don't sit on the lens
 
 palette:
-  hue_deg: 8.0
-  saturation: 0.12
+  hue_deg: 16.0          # widened (was 8) to span brand-to-brand colour shades
+  saturation: 0.14
   value: 0.12
 
-finish:
-  tile_roughness: { min: 0.2, max: 0.45 }
-  body_roughness: { min: 0.35, max: 0.6 }
+finish:                  # speedcubes are matte, not glossy -> lean high roughness
+  tile_roughness: { min: 0.40, max: 0.65 }
+  body_roughness: { min: 0.45, max: 0.70 }
 
 occluders:
   probability: 0.6

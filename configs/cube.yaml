@@ -17,10 +17,23 @@ materials:
 
   # Standard "white up, green front, red right" color scheme. These are base colors
   # only; the render pipeline (M2) jitters them per frame for cross-brand generalisation.
-  face_colors:
-    U: [0.90, 0.90, 0.90]  # white
-    D: [0.95, 0.80, 0.05]  # yellow
-    F: [0.00, 0.50, 0.18]  # green
-    B: [0.00, 0.18, 0.60]  # blue
-    L: [0.90, 0.35, 0.00]  # orange
-    R: [0.70, 0.03, 0.03]  # red
+  face_colors:                # vivid speedcube base colours (jittered wider per frame in M2)
+    U: [0.92, 0.92, 0.92]  # white
+    D: [1.00, 0.82, 0.05]  # yellow
+    F: [0.00, 0.60, 0.22]  # green
+    B: [0.00, 0.28, 0.78]  # blue
+    L: [0.95, 0.40, 0.00]  # orange
+    R: [0.82, 0.05, 0.05]  # red
+
+# Appearance variants (M4/M5 hardening): the renderer samples one .blend per frame, weighted
+# ~70% toward thin-gridline / near-stickerless looks (the speedcube majority) and ~30% thick
+# stickered (Rubik's-style). Only the gap/border (the gridline) changes -- the landmark lattice
+# and facelet IDs are identical across all, so labels are unaffected. tile_margin ~0 reads as
+# stickerless. Build with build_cube.py; the renderer reads the generated variants.json.
+variants:
+  - { name: stickered_thick, gap_m: 0.0016, tile_margin_m: 0.0016, weight: 0.15 }
+  - { name: stickered_med,   gap_m: 0.0010, tile_margin_m: 0.0008, weight: 0.15 }
+  - { name: thin_a,          gap_m: 0.0007, tile_margin_m: 0.0004, weight: 0.20 }
+  - { name: thin_b,          gap_m: 0.0005, tile_margin_m: 0.0002, weight: 0.20 }
+  - { name: stickerless_a,   gap_m: 0.0006, tile_margin_m: 0.0001, weight: 0.15 }
+  - { name: stickerless_b,   gap_m: 0.0004, tile_margin_m: 0.0001, weight: 0.15 }
