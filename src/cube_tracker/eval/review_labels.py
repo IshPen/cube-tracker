@@ -1,11 +1,20 @@
 """Browser tool to verify Grounding DINO pseudo-labels before fine-tuning (M4 hardening).
 
 Shows each real frame with its auto-label box (or a "NO CUBE" banner for hard negatives) one at
-a time; keep the good ones and discard the wrong ones (a box on the wrong object, or a missed
-cube wrongly marked empty). Discarded frames are moved to ``_discarded/`` so nothing is lost.
-Keyboard: K / → / Space = keep, D / ← skip-back. Needs the ``demo`` extra (flask).
+a time. Three actions per frame:
+
+- **Keep** (K / Space / right): the label is correct -- a good cube box, or a genuinely empty
+  negative -- leave it as is.
+- **No cube** (N): there is no cube but a box was drawn (a false positive on a poster/face);
+  clear the box so the frame becomes a clean hard negative instead of being thrown away.
+- **Discard** (D): the frame is unusable; move it to ``_discarded/``.
+
+With ``--recover`` the tool reviews a discard pile instead: Keep / No cube move the frame back
+up to the parent folder (with its label kept or cleared); Discard leaves it discarded. Needs
+the ``demo`` extra (flask).
 
     python -m cube_tracker.eval.review_labels --frames-dir data/real_frames
+    python -m cube_tracker.eval.review_labels --frames-dir data/real_frames/_discarded --recover
 """
 
 from __future__ import annotations
@@ -50,50 +59,50 @@ _PAGE = """<!doctype html><html><head><meta charset="utf-8"><title>Label Review<
  body{margin:0;background:#111;color:#eee;font-family:system-ui,sans-serif;text-align:center}
  #bar{height:6px;background:#0a0;transition:width .1s}
  #wrap{padding:10px}
- img{max-width:92vw;max-height:74vh;border-radius:8px;border:3px solid #333}
- .b{font-size:18px;padding:10px 22px;margin:8px;border:0;border-radius:8px;
+ img{max-width:92vw;max-height:72vh;border-radius:8px;border:3px solid #333}
+ .b{font-size:18px;padding:10px 20px;margin:6px;border:0;border-radius:8px;
     cursor:pointer;color:#fff}
- #keep{background:#1a8a1a}#disc{background:#a31a1a}#back{background:#444}
+ #keep{background:#1a8a1a}#nocube{background:#b8860b}#disc{background:#a31a1a}#back{background:#444}
  #status{font-size:16px;color:#aaa;margin-top:6px}
 </style></head><body>
 <div id="bar" style="width:0"></div>
 <div id="wrap">
- <h3>Pseudo-label review — keep good boxes, discard wrong/missed</h3>
+ <h3>Pseudo-label review</h3>
  <div><img id="im" src="/img/0"></div>
  <div id="status">1 / {{total}}</div>
- <button class="b" id="keep" onclick="decide(true)">Keep (K)</button>
- <button class="b" id="disc" onclick="decide(false)">Discard (D)</button>
+ <button class="b" id="keep" onclick="act('keep')">Keep (K)</button>
+ <button class="b" id="nocube" onclick="act('nocube')">No cube (N)</button>
+ <button class="b" id="disc" onclick="act('discard')">Discard (D)</button>
  <button class="b" id="back" onclick="back()">Back</button>
 </div>
 <script>
- const total={{total}}; let i=0; const discard=[];
+ const total={{total}}; let i=0; const actions=[];
  function show(){
    document.getElementById('im').src='/img/'+i;
-   document.getElementById('status').textContent=
-     (i+1)+' / '+total+' (discarded: '+discard.length+')';
+   document.getElementById('status').textContent=(i+1)+' / '+total;
    document.getElementById('bar').style.width=(100*i/total)+'%';
  }
- function decide(keep){ if(!keep) discard.push(i); i++; if(i>=total) finish(); else show(); }
- function back(){
-   if(i>0){ i--; const k=discard.indexOf(i); if(k>=0) discard.splice(k,1); show(); }
- }
+ function act(a){ actions[i]=a; i++; if(i>=total) finish(); else show(); }
+ function back(){ if(i>0){ i--; actions.length=i; show(); } }
  function finish(){
    fetch('/save',{method:'POST',headers:{'Content-Type':'application/json'},
-     body:JSON.stringify({discard})}).then(r=>r.json()).then(d=>{
+     body:JSON.stringify({actions})}).then(r=>r.json()).then(d=>{
      document.getElementById('wrap').innerHTML=
-       '<h2>Done — kept '+d.kept+', discarded '+d.discarded+'.</h2>';
+       '<h2>Done — keep '+d.keep+', no-cube '+d.nocube+', discard '+d.discard+'.</h2>';
      document.getElementById('bar').style.width='100%';
    });
  }
  document.onkeydown=e=>{
-   if(e.key==='k'||e.key==='K'||e.key==='ArrowRight'||e.key===' ') decide(true);
-   else if(e.key==='d'||e.key==='D') decide(false);
-   else if(e.key==='ArrowLeft') back();
+   const k=e.key;
+   if(k==='k'||k==='K'||k==='ArrowRight'||k===' ') act('keep');
+   else if(k==='n'||k==='N') act('nocube');
+   else if(k==='d'||k==='D') act('discard');
+   else if(k==='ArrowLeft') back();
  };
 </script></body></html>"""
 
 
-def create_app(frames_dir: Path) -> Flask:
+def create_app(frames_dir: Path, recover: bool) -> Flask:
     app = Flask(__name__)
     frames = _frames(frames_dir)
 
@@ -107,14 +116,30 @@ def create_app(frames_dir: Path) -> Flask:
 
     @app.route("/save", methods=["POST"])
     def save() -> Response:
-        discard = set(request.get_json()["discard"])
+        actions = request.get_json()["actions"]
+        counts = {"keep": 0, "nocube": 0, "discard": 0}
         trash = frames_dir / "_discarded"
-        trash.mkdir(exist_ok=True)
-        for index_ in discard:
-            frame = frames[index_]
-            frame.rename(trash / frame.name)
-            frame.with_suffix(".txt").rename(trash / f"{frame.stem}.txt")
-        return jsonify(kept=len(frames) - len(discard), discarded=len(discard))
+        for frame, action in zip(frames, actions, strict=False):
+            counts[action] += 1
+            label = frame.with_suffix(".txt")
+            if recover:
+                if action == "discard":
+                    continue  # leave it in the discard pile
+                moved = frames_dir.parent / frame.name
+                frame.rename(moved)
+                new_label = moved.with_suffix(".txt")
+                if action == "nocube":
+                    new_label.write_text("", encoding="utf-8")
+                    label.unlink(missing_ok=True)
+                else:
+                    label.rename(new_label)
+            elif action == "discard":
+                trash.mkdir(exist_ok=True)
+                frame.rename(trash / frame.name)
+                label.rename(trash / label.name)
+            elif action == "nocube":
+                label.write_text("", encoding="utf-8")
+        return jsonify(**counts)
 
     return app
 
@@ -122,11 +147,16 @@ def create_app(frames_dir: Path) -> Flask:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Review pseudo-labels in a browser.")
     parser.add_argument("--frames-dir", required=True)
+    parser.add_argument(
+        "--recover",
+        action="store_true",
+        help="Review a discard pile; Keep/No cube move frames back to the parent folder.",
+    )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=5001)
     args = parser.parse_args()
 
-    app = create_app(Path(args.frames_dir))
+    app = create_app(Path(args.frames_dir), args.recover)
     print(f"[review_labels] open http://{args.host}:{args.port} — Ctrl+C to stop")
     app.run(host=args.host, port=args.port)
 
