@@ -97,6 +97,22 @@ frame, so the single-frame test and the bulk run share one code path. To render 
 directly under Blender (no launcher), run `generate_dataset.py` with `--shard-index` /
 `--num-shards`.
 
+## Training the detector
+
+Convert the dataset's labels to YOLO format, then fine-tune a detector on the GPU:
+
+```bash
+python -m cube_tracker.models.detector_data \
+  --dataset-dir <dataset> --data-yaml data/cube_detect.yaml
+python -m cube_tracker.models.detector \
+  --data-yaml data/cube_detect.yaml --epochs 30 --batch 16 --workers 4 --device 0
+```
+
+Training applies Ultralytics' built-in augmentation plus a **webcam-degradation** pipeline
+(noise, blur, JPEG, colour/exposure shifts) for sim-to-real robustness; weights and metrics
+land in `models_out/` (gitignored). On Windows pass `--workers 4` (not Ultralytics' default of
+8) to avoid a DataLoader deadlock.
+
 ## License
 
 [Apache-2.0](LICENSE).
