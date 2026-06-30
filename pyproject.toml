@@ -57,6 +57,8 @@ dev = [
 # Development-time labelling helpers (Grounding DINO, Segment Anything) used to
 # pseudo-label real footage. These never ship in the deployed pipeline (§5.2).
 label = ["transformers"]
+# Live webcam detection frontend (eval/webcam_demo.py).
+demo = ["flask"]
 
 [project.urls]
 Homepage = "https://github.com/IshPen/cube-tracker"

@@ -113,6 +113,19 @@ Training applies Ultralytics' built-in augmentation plus a **webcam-degradation*
 land in `models_out/` (gitignored). On Windows pass `--workers 4` (not Ultralytics' default of
 8) to avoid a DataLoader deadlock.
 
+## Live webcam test
+
+Stream your webcam through the trained detector in the browser (needs the `demo` extra:
+`pip install -e ".[demo]"`):
+
+```bash
+python -m cube_tracker.eval.webcam_demo \
+  --weights models_out/detector/yolo11n_cube_v2/weights/best.pt
+```
+
+Then open <http://localhost:5000> and point your webcam at a cube — the boxes are drawn live by
+the detector. This is the real-world sim-to-real check for the detector (M4).
+
 ## License
 
 [Apache-2.0](LICENSE).
