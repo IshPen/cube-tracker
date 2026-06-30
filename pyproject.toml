@@ -101,13 +101,16 @@ warn_unused_ignores = true
 # Blender's modules ship only inside Blender's interpreter, so they are unavailable to
 # mypy in the project venv. build_cube.py runs under Blender; type-check the rest around it.
 [[tool.mypy.overrides]]
-module = ["bpy", "bmesh", "mathutils", "bpy_extras.*", "pycuber", "cv2", "tqdm", "albumentations"]
+module = [
+  "bpy", "bmesh", "mathutils", "bpy_extras.*", "pycuber", "cv2", "tqdm", "albumentations",
+  "torch", "torch.*", "PIL", "PIL.*",
+]
 ignore_missing_imports = true
 
-# ultralytics ships partial inline types that don't export YOLO and clash with our
-# Albumentations monkeypatch; skip following it so the training wrapper type-checks cleanly.
+# ultralytics and transformers ship partial inline types (untyped from_pretrained, no YOLO
+# export) that clash with strict checking; skip following them so the wrappers type-check.
 [[tool.mypy.overrides]]
-module = ["ultralytics", "ultralytics.*"]
+module = ["ultralytics", "ultralytics.*", "transformers", "transformers.*"]
 follow_imports = "skip"
 ignore_missing_imports = true
 

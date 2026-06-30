@@ -126,6 +126,24 @@ python -m cube_tracker.eval.webcam_demo \
 Then open <http://localhost:5000> and point your webcam at a cube — the boxes are drawn live by
 the detector. This is the real-world sim-to-real check for the detector (M4).
 
+## Hardening the detector on real footage
+
+The synthetic-trained detector has a sim-to-real gap (faces and posters can read as cubes).
+Close it by mixing in real frames:
+
+1. **Collect frames** — record clips and split them, or capture live:
+   ```bash
+   python -m cube_tracker.eval.video_to_frames --videos clips --out-dir data/real_frames
+   # or: python -m cube_tracker.eval.webcam_capture --out-dir data/real_frames --count 300
+   ```
+2. **Pseudo-label the cube** with Grounding DINO (needs the `label` extra: `pip install -e ".[label]"`).
+   Frames with no cube get an empty label = hard negative:
+   ```bash
+   python -m cube_tracker.models.pseudo_label --frames-dir data/real_frames
+   ```
+3. **Fine-tune** the detector on the synthetic data plus these real frames, and re-test in the
+   webcam demo.
+
 ## License
 
 [Apache-2.0](LICENSE).
