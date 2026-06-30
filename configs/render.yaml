@@ -54,7 +54,7 @@ scramble:
   num_moves: 25
 
 motion_blur:
-  probability: 0.0          # off by default; M2 verification wants sharp frames
+  probability: 0.15         # mostly sharp (models read stable frames); some blur for robustness
   shutter: 0.6
   max_rotation_deg: 18.0
 
